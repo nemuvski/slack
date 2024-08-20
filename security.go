@@ -37,12 +37,20 @@ func unsafeSignatureVerifier(header http.Header, secret string) (_ SecretsVerifi
 		return SecretsVerifier{}, ErrMissingHeaders
 	}
 
-	if bsignature, err = hex.DecodeString(strings.TrimPrefix(signature, "v0=")); err != nil {
+	// Split the signature into up to two chunks, using = as the delimiter.
+	// If the format is not problematic, it is divided into two parts.
+	// e.g. ["v0", "adada..."]
+	parts := strings.SplitN(signature, "=", 2)
+	if len(parts) != 2 {
+		return SecretsVerifier{}, ErrInvalidSignatureFormat
+	}
+
+	if bsignature, err = hex.DecodeString(parts[1]); err != nil {
 		return SecretsVerifier{}, err
 	}
 
 	hash := hmac.New(sha256.New, []byte(secret))
-	if _, err = hash.Write([]byte(fmt.Sprintf("v0:%s:", stimestamp))); err != nil {
+	if _, err = hash.Write([]byte(fmt.Sprintf("%s:%s:", parts[0], stimestamp))); err != nil {
 		return SecretsVerifier{}, err
 	}
 
